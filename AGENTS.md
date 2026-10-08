@@ -266,27 +266,36 @@ cite line numbers of a text extraction.
 
 **This repository merges by squash only.** `allow_merge_commit` is
 `false`. Individual commits on a branch are *review units*; the only
-thing that lands on `main` is one squash commit whose subject is the
-**pull request title** and whose body is the pull request description.
+thing that lands on `main` is one squash commit built from the pull
+request:
 
-release-plz reads that squash commit. So the branch's careful commit
-messages do not reach the changelog or the version bump - the title does.
+- subject = the **pull request title** (`squash_merge_commit_title: PR_TITLE`)
+- body = the **pull request description** (`squash_merge_commit_message: PR_BODY`)
+
+release-plz parses that whole commit, body included - so a
+`BREAKING CHANGE:` footer or a `Closes #N` in the description is read
+normally. What is lost is the branch's own commit messages: because the
+body comes from `PR_BODY` rather than `COMMIT_MESSAGES`, nothing written
+in an individual commit reaches `main` unless the description repeats it.
 
 **When writing a pull request description, an agent MUST:**
 
 1. **Aggregate severity into the title.** Scan every commit on the
    branch and take the maximum:
    - If **any** commit is breaking (`!` or a `BREAKING CHANGE:` footer),
-     the title **must** carry `!` and the body **must** carry a
-     `BREAKING CHANGE:` footer describing the combined impact.
+     the title **must** carry `!` **and** the body **must** carry a
+     `BREAKING CHANGE:` footer describing the combined impact. Either
+     alone would bump the version correctly, but the `!` is what makes
+     the break visible in `git log --oneline` and in the changelog
+     heading, and the footer is what explains the migration.
    - Otherwise the title's type is the highest-ranking type present:
      `feat` > `fix` > everything else. A branch with one `feat` and nine
      `fix` commits is titled `feat`.
    - Pick a scope that covers the branch, or omit it.
 2. **Collect every `Closes #N` / `Fixes #N` / `Refs #N`** from all
-   commits into the pull request body. Footers in squashed commits do
-   **not** fire individually - if an issue reference is not in the body,
-   the issue will not close.
+   commits into the pull request body. The body does reach `main`, but
+   the commits it was written from do not - an issue referenced only in
+   a branch commit will never close.
 3. **Preserve every `BREAKING CHANGE:` footer**, merged into one footer
    in the body.
 4. Keep the body terse: what changed, why, how it was verified.

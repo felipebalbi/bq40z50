@@ -74,24 +74,25 @@ with AI assistance must end with an `Assisted-by:` trailer.
 * Create a draft PR first
 * Make sure that your branch has `.github` folder and all the code linting/sanity check workflows are passing in your draft PR before sending it out to code reviewers.
 
-## The PR Title Is The Commit Message
+## The Pull Request Is The Commit Message
 
 **This repository merges by squash only.** The commits on your branch are
 review units; the only thing that lands on `main` is a single squash
 commit whose subject is the **pull request title** and whose body is the
-pull request description.
+**pull request description**.
 
-Releases are automated and read that squash commit, so the pull request
-title must itself be a valid Conventional Commit. In particular:
+Releases are automated and parse that commit, body included, so the
+title must itself be a valid Conventional Commit and the description
+carries the footers. In particular:
 
 * If **any** commit on the branch is breaking, the title must carry `!`
   and the description must carry a `BREAKING CHANGE:` footer covering
   the combined impact.
 * Otherwise use the highest-ranking type on the branch: `feat` outranks
   `fix`, which outranks everything else.
-* **List every `Closes #N` in the description.** Footers inside squashed
-  commits do not fire individually; an issue that is not referenced in
-  the description will not close.
+* **List every `Closes #N` in the description.** The description reaches
+  `main`, but the commits it was written from do not - an issue
+  referenced only in a branch commit will never close.
 
 A wrong title means a wrong version bump or a missing release.
 
