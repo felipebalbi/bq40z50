@@ -1,5 +1,14 @@
 macro_rules! bq40z50_tests {
-    ($revision:ident) => {
+    // `$security_keys_len` is the length of the Security Keys block for this revision, taken
+    // from the worked example in that revision's TRM. It is passed in rather than read from
+    // `consts` so the test pins the TRM value independently of the driver constant.
+    //
+    // `$lifetime_block_1_len` is the length of LIFETIME_DATA_BLOCK_1 for this revision. r1 and
+    // r3 carry six extra temperature bytes at the end of the block. It is a macro parameter
+    // rather than a `cfg` because this macro is expanded once per revision module while a `cfg`
+    // is evaluated once for the whole build, so a multi-revision build would otherwise give
+    // every module the same length.
+    ($revision:ident, $security_keys_len:literal, $lifetime_block_1_len:literal) => {
         #[cfg(test)]
         mod tests {
             use device_driver::{
@@ -12,7 +21,7 @@ macro_rules! bq40z50_tests {
 
             use super::*;
             use crate::common::{CapacityModeState, Config};
-            use crate::consts::{BQ_ADDR, DEFAULT_ERROR_BACKOFF_DELAY_MS};
+            use crate::consts::{BQ_ADDR, DEFAULT_BUS_RETRIES, DEFAULT_ERROR_BACKOFF_DELAY_MS};
 
             fn write_transaction(data: &[u8], use_pec: bool) -> Transaction {
                 let mut frame = data.to_vec();
@@ -543,9 +552,11 @@ macro_rules! bq40z50_tests {
                     );
                     let data = [[0x11; 32], [0x22; 32], [0x33; 32]].concat();
 
+                    // The first chunk was committed before the second one failed, so the error
+                    // reports that progress rather than the underlying NAK.
                     assert_eq!(
                         bq.write_dataflash(0x4000, &data).await,
-                        Err(BQ40Z50Error::I2c(error))
+                        Err(BQ40Z50Error::PartialDataFlashWrite { committed: 32 })
                     );
 
                     bq.device.interface().i2c.done();
@@ -555,34 +566,56 @@ macro_rules! bq40z50_tests {
 
             #[tokio::test]
             async fn write_unseal_keys() {
+                // The Security Keys block grew with each silicon revision, so its length is taken
+                // from the worked example in this revision's TRM section: SLUUA43A 12.1.33,
+                // SLUUBU5A 15.1.33, SLUUCH2 16.1.33 or SLUUCN4B 16.1.34.
+                const LEN: usize = $security_keys_len;
+
+                let security_keys: [u8; LEN] = core::array::from_fn(|i| u8::try_from(i).unwrap());
+
+                // [ 0x44 | 2 command bytes + key bytes | 0x35 | 0x00 | keys ]
+                let mut write_frame = vec![0x44, u8::try_from(LEN + 2).unwrap(), 0x35, 0x00];
+                write_frame.extend_from_slice(&security_keys);
+
+                // [ 2 command bytes + key bytes | 0x35 | 0x00 | keys ]
+                let mut read_frame = vec![u8::try_from(LEN + 2).unwrap(), 0x35, 0x00];
+                read_frame.extend_from_slice(&security_keys);
+
                 let expectations = vec![
-                    Transaction::write(
-                        BQ_ADDR,
-                        vec![
-                            0x44, 0x0A, 0x35, 0x00, 0x30, 0x30, 0x60, 0x60, 0x01, 0x01, 0x10, 0x10,
-                        ],
-                    ),
+                    Transaction::write(BQ_ADDR, write_frame),
                     Transaction::write(BQ_ADDR, vec![0x44, 0x02, 0x35, 0x00]),
-                    Transaction::write_read(
-                        BQ_ADDR,
-                        vec![0x44],
-                        vec![0x0A, 0x35, 0x00, 0x30, 0x30, 0x60, 0x60, 0x01, 0x01, 0x10, 0x10],
-                    ),
+                    Transaction::write_read(BQ_ADDR, vec![0x44], read_frame),
                 ];
                 let i2c = Mock::new(&expectations);
                 let mut bq = Bq40z50::new(i2c, NoopDelay::new());
 
-                let security_keys = [0x30u8, 0x30u8, 0x60u8, 0x60u8, 0x01u8, 0x01u8, 0x10u8, 0x10u8];
-
                 bq.write_security_keys(&security_keys).await.unwrap();
 
-                let mut result = [0u8; 8];
+                let mut result = [0u8; LEN];
                 bq.read_security_keys(&mut result).await.unwrap();
 
-                assert_eq!(u16::from_le_bytes([result[0], result[1]]), 0x3030);
-                assert_eq!(u16::from_le_bytes([result[2], result[3]]), 0x6060);
-                assert_eq!(u16::from_le_bytes([result[4], result[5]]), 0x0101);
-                assert_eq!(u16::from_le_bytes([result[6], result[7]]), 0x1010);
+                assert_eq!(result, security_keys);
+                bq.device.interface().i2c.done();
+            }
+
+            #[tokio::test]
+            async fn write_authentication_key() {
+                // The authentication key is 128 bits, i.e. 16 bytes, on every revision:
+                // SLUUA43A 12.1.34, SLUUBU5A 15.1.34, SLUUCH2 16.1.34 and SLUUCN4B 16.1.35.
+                let auth_key: [u8; 16] = core::array::from_fn(|i| u8::try_from(i).unwrap());
+
+                // [ 0x44 | 0x12 (18 = 2 command bytes + 16 key bytes) | 0x37 | 0x00 | 16 key bytes ]
+                let mut write_frame = vec![0x44, 0x12, 0x37, 0x00];
+                write_frame.extend_from_slice(&auth_key);
+                // The length byte must agree with what actually goes on the wire after it.
+                assert_eq!(write_frame.len(), 20);
+
+                let expectations = vec![Transaction::write(BQ_ADDR, write_frame)];
+                let i2c = Mock::new(&expectations);
+                let mut bq = Bq40z50::new(i2c, NoopDelay::new());
+
+                bq.write_authentication_key(&auth_key).await.unwrap();
+
                 bq.device.interface().i2c.done();
             }
 
@@ -722,6 +755,155 @@ macro_rules! bq40z50_tests {
             }
 
             #[tokio::test]
+            async fn test_capacity_mode_not_cached_on_failed_write() {
+                // SLUUCN4B 16.4 0x03 BatteryMode(): the reporting unit follows CAPM as latched in the
+                // part. A write that never completes latches nothing, so the cache must not move.
+                let expectations = vec![
+                    Transaction::write(BQ_ADDR, vec![0x03, 0x00, 0x80]).with_error(
+                        embedded_hal::i2c::ErrorKind::NoAcknowledge(embedded_hal::i2c::NoAcknowledgeSource::Address),
+                    ),
+                    Transaction::write(BQ_ADDR, vec![0x03, 0x00, 0x80]).with_error(
+                        embedded_hal::i2c::ErrorKind::NoAcknowledge(embedded_hal::i2c::NoAcknowledgeSource::Address),
+                    ),
+                    Transaction::write(BQ_ADDR, vec![0x03, 0x00, 0x80]).with_error(
+                        embedded_hal::i2c::ErrorKind::NoAcknowledge(embedded_hal::i2c::NoAcknowledgeSource::Address),
+                    ),
+                    Transaction::write(BQ_ADDR, vec![0x03, 0x00, 0x80]).with_error(
+                        embedded_hal::i2c::ErrorKind::NoAcknowledge(embedded_hal::i2c::NoAcknowledgeSource::Address),
+                    ),
+                    Transaction::write_read(BQ_ADDR, vec![0x0F], vec![80, 0x00]),
+                ];
+                let i2c = Mock::new(&expectations);
+                let delay_expectations = vec![
+                    DelayTransaction::delay_ms(DEFAULT_ERROR_BACKOFF_DELAY_MS),
+                    DelayTransaction::delay_ms(DEFAULT_ERROR_BACKOFF_DELAY_MS),
+                    DelayTransaction::delay_ms(DEFAULT_ERROR_BACKOFF_DELAY_MS),
+                ];
+                let mut bq = Bq40z50::new(i2c, CheckedDelay::new(&delay_expectations));
+
+                assert_eq!(bq.capacity_mode_state.get(), CapacityModeState::Milliamps);
+
+                let mode = BatteryModeFields::new().with_capacity_mode(true);
+                let res = bq.set_battery_mode(mode).await;
+                assert_eq!(
+                    res,
+                    Err(BQ40Z50Error::I2c(embedded_hal::i2c::ErrorKind::NoAcknowledge(
+                        embedded_hal::i2c::NoAcknowledgeSource::Address
+                    )))
+                );
+
+                // The write failed, so the part is still in mA mode and so is the cache.
+                assert_eq!(bq.capacity_mode_state.get(), CapacityModeState::Milliamps);
+                let rem_cap = bq.remaining_capacity().await.unwrap();
+                assert!(matches!(rem_cap, CapacityModeValue::MilliAmpUnsigned(80)));
+
+                bq.device.interface().i2c.done();
+                bq.device.interface().delay.done();
+            }
+
+            #[tokio::test]
+            async fn test_battery_mode_read_refreshes_capacity_mode() {
+                // SLUUCN4B 16.4 0x03 BatteryMode(): a read returns the authoritative CAPM, so the
+                // cached reporting unit must follow it.
+                let expectations = vec![
+                    Transaction::write_read(BQ_ADDR, vec![0x03], vec![0x00, 0x80]),
+                    Transaction::write_read(BQ_ADDR, vec![0x0F], vec![100, 0x00]),
+                ];
+                let i2c = Mock::new(&expectations);
+                let mut bq = Bq40z50::new(i2c, NoopDelay::new());
+
+                assert_eq!(bq.capacity_mode_state.get(), CapacityModeState::Milliamps);
+
+                let mode = bq.battery_mode().await.unwrap();
+                assert!(mode.capacity_mode());
+                assert_eq!(bq.capacity_mode_state.get(), CapacityModeState::Centiwatt);
+
+                let rem_cap = bq.remaining_capacity().await.unwrap();
+                assert!(matches!(rem_cap, CapacityModeValue::CentiWattUnsigned(100)));
+
+                bq.device.interface().i2c.done();
+            }
+
+            #[tokio::test]
+            async fn test_set_remaining_capacity_alarm_unit_mismatch() {
+                // SLUUCN4B 16.2 0x01 RemainingCapacityAlarm(): the register unit is selected by
+                // BatteryMode()[CAPM], not by the caller, so a mismatched tag must be rejected.
+                let expectations = vec![
+                    Transaction::write(BQ_ADDR, vec![0x01, 0x2C, 0x01]),
+                    Transaction::write(BQ_ADDR, vec![0x03, 0x00, 0x80]),
+                    Transaction::write(BQ_ADDR, vec![0x01, 0x2C, 0x01]),
+                ];
+                let i2c = Mock::new(&expectations);
+                let mut bq = Bq40z50::new(i2c, NoopDelay::new());
+
+                // Cache defaults to mA: the matching tag is accepted.
+                bq.set_remaining_capacity_alarm(CapacityModeValue::MilliAmpUnsigned(300))
+                    .await
+                    .unwrap();
+
+                // The mismatched tag is rejected without touching the bus.
+                assert_eq!(
+                    bq.set_remaining_capacity_alarm(CapacityModeValue::CentiWattUnsigned(300))
+                        .await,
+                    Err(BQ40Z50Error::CapacityModeMismatch)
+                );
+
+                bq.set_battery_mode(BatteryModeFields::new().with_capacity_mode(true))
+                    .await
+                    .unwrap();
+
+                // Now in cWh mode, the units swap over.
+                assert_eq!(
+                    bq.set_remaining_capacity_alarm(CapacityModeValue::MilliAmpUnsigned(300))
+                        .await,
+                    Err(BQ40Z50Error::CapacityModeMismatch)
+                );
+                bq.set_remaining_capacity_alarm(CapacityModeValue::CentiWattUnsigned(300))
+                    .await
+                    .unwrap();
+
+                bq.device.interface().i2c.done();
+            }
+
+            #[tokio::test]
+            async fn test_set_at_rate_unit_mismatch() {
+                // SLUUCN4B 16.5 0x04 AtRate(): the register unit is selected by BatteryMode()[CAPM],
+                // not by the caller, so a mismatched tag must be rejected.
+                let expectations = vec![
+                    Transaction::write(BQ_ADDR, vec![0x04, 0x9C, 0xFF]),
+                    Transaction::write(BQ_ADDR, vec![0x03, 0x00, 0x80]),
+                    Transaction::write(BQ_ADDR, vec![0x04, 0x9C, 0xFF]),
+                ];
+                let i2c = Mock::new(&expectations);
+                let mut bq = Bq40z50::new(i2c, NoopDelay::new());
+
+                bq.set_at_rate(CapacityModeSignedValue::MilliAmpSigned(-100))
+                    .await
+                    .unwrap();
+
+                assert_eq!(
+                    bq.set_at_rate(CapacityModeSignedValue::CentiWattSigned(-100))
+                        .await,
+                    Err(BQ40Z50Error::CapacityModeMismatch)
+                );
+
+                bq.set_battery_mode(BatteryModeFields::new().with_capacity_mode(true))
+                    .await
+                    .unwrap();
+
+                assert_eq!(
+                    bq.set_at_rate(CapacityModeSignedValue::MilliAmpSigned(-100))
+                        .await,
+                    Err(BQ40Z50Error::CapacityModeMismatch)
+                );
+                bq.set_at_rate(CapacityModeSignedValue::CentiWattSigned(-100))
+                    .await
+                    .unwrap();
+
+                bq.device.interface().i2c.done();
+            }
+
+            #[tokio::test]
             async fn test_reg_retries() {
                 // Should have 3 retries
                 let expectations = vec![
@@ -839,6 +1021,50 @@ macro_rules! bq40z50_tests {
                 assert_eq!(override_struct.std_low_temp_chrg_mv, 12000);
                 assert_eq!(override_struct.std_hi_temp_chrg_mv, 12600);
                 assert_eq!(override_struct.hi_temp_chrg_mv, 12000);
+                assert_eq!(override_struct.recommended_temp_chrg_mv, 11800);
+                bq.device.interface().i2c.done();
+            }
+
+            #[cfg(not(feature = "r1"))]
+            #[tokio::test]
+            async fn test_charging_override_voltage_signed() {
+                // SLUUCN4B Table 16-1 types 0x00B0 ChargingVoltageOverride as "Signed Int", so a raw
+                // word with bit 15 set must round-trip as a negative value, not a large positive one.
+                let expectations = vec![
+                    Transaction::write(
+                        BQ_ADDR,
+                        vec![
+                            0x44, 0x0C, 0xB0, 0x00, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0x7F, 0xE8, 0xD1, 0x18, 0x2E,
+                        ],
+                    ),
+                    Transaction::write(BQ_ADDR, vec![0x44, 0x02, 0xB0, 0x00]),
+                    Transaction::write_read(
+                        BQ_ADDR,
+                        vec![0x44],
+                        vec![
+                            0x0C, 0xB0, 0x00, 0xFF, 0xFF, 0x00, 0x80, 0xFF, 0x7F, 0xE8, 0xD1, 0x18, 0x2E,
+                        ],
+                    ),
+                ];
+                let i2c = Mock::new(&expectations);
+                let mut bq = Bq40z50::new(i2c, NoopDelay::new());
+
+                bq.write_charging_voltage_override(&ChargingVoltageOverride {
+                    low_temp_chrg_mv: -1,
+                    std_low_temp_chrg_mv: -32768,
+                    std_hi_temp_chrg_mv: 32767,
+                    hi_temp_chrg_mv: -11800,
+                    recommended_temp_chrg_mv: 11800,
+                })
+                .await
+                .unwrap();
+
+                let override_struct = bq.read_charging_voltage_override().await.unwrap();
+
+                assert_eq!(override_struct.low_temp_chrg_mv, -1);
+                assert_eq!(override_struct.std_low_temp_chrg_mv, -32768);
+                assert_eq!(override_struct.std_hi_temp_chrg_mv, 32767);
+                assert_eq!(override_struct.hi_temp_chrg_mv, -11800);
                 assert_eq!(override_struct.recommended_temp_chrg_mv, 11800);
                 bq.device.interface().i2c.done();
             }
@@ -1180,6 +1406,449 @@ macro_rules! bq40z50_tests {
                 assert_eq!(read.as_slice(), expected.as_slice());
 
                 bq.device.interface().i2c.done();
+            }
+
+            /// Issue #65: a PEC failure on a DF read chunk must re-send that chunk's starting
+            /// address before re-reading, otherwise the gauge's address auto-increment hands
+            /// back the *next* block and the driver silently returns the wrong data.
+            ///
+            /// SLUUCN4B 16.1.101: "To read the DF, send an SMBus block write to the
+            /// ManufacturerBlockAccess(), followed by the starting address, then send an SMBus
+            /// block read to the ManufacturerBlockAccess()." and "If another SMBus read block is
+            /// sent with command 0x44, the gauge returns another 32 bytes of DF data, starting
+            /// with address 0x4020."
+            #[tokio::test]
+            async fn test_df_read_pec_retry_resends_address() {
+                const BLOCK_A: [u8; 35] = [
+                    0x22, 0x00, 0x40, 0x00, 0x18, 0x2E, 0xE0, 0x2E, 0x38, 0x31, 0xE0, 0x2E, 0x18, 0x2E, 0x00, 0x18,
+                    0x2E, 0xE0, 0x2E, 0x38, 0x31, 0xE0, 0x2E, 0x18, 0x2E, 0x00, 0x18, 0x2E, 0xE0, 0x2E, 0x38, 0x31,
+                    0xE0, 0x2E, 0x18,
+                ];
+                const BLOCK_B: [u8; 35] = [
+                    0x22, 0x20, 0x40, // length + starting address 0x4020
+                    0xDE, 0xAD, 0xDE, 0xAD, 0xDE, 0xAD, 0xDE, 0xAD, 0xDE, 0xAD, 0xDE, 0xAD, 0xDE, 0xAD, 0xD0, 0x0D,
+                    0xDE, 0xAD, 0xDE, 0xAD, 0xDE, 0xAD, 0xDE, 0xAD, 0xDE, 0xAD, 0xDE, 0xAD, 0xDE, 0xAD, 0xD0, 0x0D,
+                ];
+
+                let mut block_a_good = BLOCK_A.to_vec();
+                block_a_good.push(0x22); // correct PEC
+                let mut block_b_good = BLOCK_B.to_vec();
+                block_b_good.push(0xE0); // correct PEC
+                let mut block_b_bad = BLOCK_B.to_vec();
+                block_b_bad.push(0x00); // corrupted PEC
+
+                let expectations = vec![
+                    // Address write for the whole transfer, starting at 0x4000.
+                    Transaction::write(BQ_ADDR, vec![0x44, 0x02, 0x00, 0x40, 0xAB /* PEC */]),
+                    // Chunk 1 at 0x4000, good PEC.
+                    Transaction::write_read(BQ_ADDR, vec![0x44], block_a_good),
+                    // Chunk 2 at 0x4020, corrupted PEC.
+                    Transaction::write_read(BQ_ADDR, vec![0x44], block_b_bad),
+                    // The retry MUST re-send chunk 2's own starting address (0x4020), not rely on
+                    // the auto-increment, which would otherwise serve up the block at 0x4040.
+                    Transaction::write(BQ_ADDR, vec![0x44, 0x02, 0x20, 0x40, 0x05 /* PEC */]),
+                    Transaction::write_read(BQ_ADDR, vec![0x44], block_b_good),
+                ];
+                let i2c = Mock::new(&expectations);
+                let mut bq = Bq40z50::new_with_config(
+                    i2c,
+                    NoopDelay::new(),
+                    Config {
+                        pec_read: true,
+                        pec_write: true,
+                        ..Default::default()
+                    },
+                );
+
+                let mut read = [0u8; 64];
+                bq.read_dataflash(0x4000, &mut read).await.unwrap();
+
+                let mut expected = [0u8; 64];
+                expected[..32].copy_from_slice(&BLOCK_A[3..]);
+                expected[32..].copy_from_slice(&BLOCK_B[3..]);
+                assert_eq!(read, expected);
+
+                bq.device.interface().i2c.done();
+            }
+
+            /// Issue #65: when the retries are exhausted the caller must get `Pec`, never a
+            /// silently substituted neighbouring block.
+            #[tokio::test]
+            async fn test_df_read_pec_retries_exhausted() {
+                const BLOCK_A: [u8; 35] = [
+                    0x22, 0x00, 0x40, 0x00, 0x18, 0x2E, 0xE0, 0x2E, 0x38, 0x31, 0xE0, 0x2E, 0x18, 0x2E, 0x00, 0x18,
+                    0x2E, 0xE0, 0x2E, 0x38, 0x31, 0xE0, 0x2E, 0x18, 0x2E, 0x00, 0x18, 0x2E, 0xE0, 0x2E, 0x38, 0x31,
+                    0xE0, 0x2E, 0x18,
+                ];
+                let mut block_a_bad = BLOCK_A.to_vec();
+                block_a_bad.push(0x00); // corrupted PEC
+
+                let mut expectations = vec![Transaction::write(BQ_ADDR, vec![0x44, 0x02, 0x00, 0x40, 0xAB])];
+                // Initial attempt plus DEFAULT_BUS_RETRIES retries, each re-addressing 0x4000.
+                for i in 0..=DEFAULT_BUS_RETRIES {
+                    if i > 0 {
+                        expectations.push(Transaction::write(BQ_ADDR, vec![0x44, 0x02, 0x00, 0x40, 0xAB]));
+                    }
+                    expectations.push(Transaction::write_read(BQ_ADDR, vec![0x44], block_a_bad.clone()));
+                }
+
+                let i2c = Mock::new(&expectations);
+                let mut bq = Bq40z50::new_with_config(
+                    i2c,
+                    NoopDelay::new(),
+                    Config {
+                        pec_read: true,
+                        pec_write: true,
+                        ..Default::default()
+                    },
+                );
+
+                let mut read = [0u8; 32];
+                assert_eq!(bq.read_dataflash(0x4000, &mut read).await, Err(BQ40Z50Error::Pec));
+
+                bq.device.interface().i2c.done();
+            }
+
+            #[tokio::test]
+            async fn test_df_read_bus_error_retry_resends_address() {
+                // The non-PEC read path retries bus errors. SLUUCN4B 16.1.101 DataFlashAccess
+                // specifies a read as an address write followed by a block read, and the gauge
+                // auto-increments its read pointer afterwards. After a failed block read the
+                // pointer's position is not defined by the TRM, so the retry must re-send this
+                // chunk's own starting address rather than rely on the auto-increment.
+                const BLOCK_A: [u8; 35] = [
+                    0x22, 0x00, 0x40, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
+                    0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11,
+                    0x11, 0x11, 0x11,
+                ];
+                const BLOCK_B: [u8; 35] = [
+                    0x22, 0x20, 0x40, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
+                    0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22,
+                    0x22, 0x22, 0x22,
+                ];
+
+                let expectations = vec![
+                    // Address write for the whole transfer, starting at 0x4000.
+                    Transaction::write(BQ_ADDR, vec![0x44, 0x02, 0x00, 0x40]),
+                    // Chunk 1 at 0x4000 succeeds; the pointer auto-increments to 0x4020.
+                    Transaction::write_read(BQ_ADDR, vec![0x44], BLOCK_A.to_vec()),
+                    // Chunk 2 fails on the bus.
+                    Transaction::write_read(BQ_ADDR, vec![0x44], BLOCK_B.to_vec()).with_error(
+                        embedded_hal::i2c::ErrorKind::NoAcknowledge(embedded_hal::i2c::NoAcknowledgeSource::Address),
+                    ),
+                    // The retry MUST re-address 0x4020. Without this the next block read would
+                    // return whatever the pointer now refers to, and the driver would hand that
+                    // back as the block the caller asked for.
+                    Transaction::write(BQ_ADDR, vec![0x44, 0x02, 0x20, 0x40]),
+                    Transaction::write_read(BQ_ADDR, vec![0x44], BLOCK_B.to_vec()),
+                ];
+                let i2c = Mock::new(&expectations);
+                let delay_expectations = vec![DelayTransaction::delay_ms(10)];
+                let mut bq = Bq40z50::new_with_config(
+                    i2c,
+                    CheckedDelay::new(&delay_expectations),
+                    Config {
+                        pec_read: false,
+                        pec_write: false,
+                        ..Default::default()
+                    },
+                );
+
+                let mut buf = [0u8; 64];
+                bq.read_dataflash(0x4000, &mut buf).await.unwrap();
+
+                assert_eq!(buf[..32], [0x11u8; 32]);
+                assert_eq!(buf[32..], [0x22u8; 32]);
+
+                bq.device.interface().i2c.done();
+                bq.device.interface().delay.done();
+            }
+
+            /// Issue #76: the DF window is 0x4000-0x5FFF on every revision. SLUUCN4B 16.1.101 is
+            /// titled "ManufacturerAccess() 0x4000-0x5FFF DataFlashAccess"; SLUUCH2 16.1.98,
+            /// SLUUBU5A 15.1.83 and SLUUA43A 12.1.60 carry the same range in their titles.
+            ///
+            /// Out-of-window addresses, and transfers whose *end* leaves the window, must be
+            /// rejected before any bus traffic.
+            #[tokio::test]
+            async fn test_df_address_bounds() {
+                // No transactions at all: every one of these must be rejected up front.
+                let i2c = Mock::new(&[]);
+                let mut bq = Bq40z50::new(i2c, NoopDelay::new());
+
+                let mut read = [0u8; 4];
+
+                // Below the window.
+                assert_eq!(
+                    bq.read_dataflash(0x3FFF, &mut read).await,
+                    Err(BQ40Z50Error::DataFlashAddressOutOfRange)
+                );
+                assert_eq!(
+                    bq.write_dataflash(0x0000, &[0u8; 4]).await,
+                    Err(BQ40Z50Error::DataFlashAddressOutOfRange)
+                );
+
+                // Above the window.
+                assert_eq!(
+                    bq.read_dataflash(0x6000, &mut read).await,
+                    Err(BQ40Z50Error::DataFlashAddressOutOfRange)
+                );
+                assert_eq!(
+                    bq.write_dataflash(0x6000, &[0u8; 4]).await,
+                    Err(BQ40Z50Error::DataFlashAddressOutOfRange)
+                );
+
+                // Starts inside the window but runs off the end of it.
+                assert_eq!(
+                    bq.read_dataflash(0x5FFE, &mut read).await,
+                    Err(BQ40Z50Error::DataFlashAddressOutOfRange)
+                );
+                assert_eq!(
+                    bq.write_dataflash(0x5FFE, &[0u8; 4]).await,
+                    Err(BQ40Z50Error::DataFlashAddressOutOfRange)
+                );
+
+                // Multi-chunk write whose later chunk addresses would run past the window.
+                assert_eq!(
+                    bq.write_dataflash(0x5FF0, &[0u8; 64]).await,
+                    Err(BQ40Z50Error::DataFlashAddressOutOfRange)
+                );
+
+                // Near the top of the u16 space: the per-chunk address add would wrap.
+                assert_eq!(
+                    bq.write_dataflash(0xFFF0, &[0u8; 64]).await,
+                    Err(BQ40Z50Error::DataFlashAddressOutOfRange)
+                );
+
+                bq.device.interface().i2c.done();
+            }
+
+            /// Issue #79: a DF write that fails part way through has already committed the earlier
+            /// chunks to flash. The error must report exactly how many caller-payload bytes the
+            /// gauge accepted.
+            #[tokio::test]
+            async fn test_df_write_partial_commit_reports_committed_bytes() {
+                let write = [0xAAu8; 96]; // 3 chunks
+                let nak = embedded_hal::i2c::ErrorKind::NoAcknowledge(embedded_hal::i2c::NoAcknowledgeSource::Address);
+
+                let mut chunk1 = vec![0x44, 34, 0x00, 0x40];
+                chunk1.extend_from_slice(&write[..32]);
+                let mut chunk2 = vec![0x44, 34, 0x20, 0x40];
+                chunk2.extend_from_slice(&write[32..64]);
+
+                let mut expectations = vec![Transaction::write(BQ_ADDR, chunk1)];
+                // Chunk 2 fails on the initial attempt and on every retry.
+                for _ in 0..=DEFAULT_BUS_RETRIES {
+                    expectations.push(Transaction::write(BQ_ADDR, chunk2.clone()).with_error(nak));
+                }
+                // Chunk 3 is never attempted.
+
+                let i2c = Mock::new(&expectations);
+                let mut bq = Bq40z50::new(i2c, NoopDelay::new());
+
+                // Exactly one 32-byte chunk reached flash.
+                assert_eq!(
+                    bq.write_dataflash(0x4000, &write).await,
+                    Err(BQ40Z50Error::PartialDataFlashWrite { committed: 32 })
+                );
+
+                bq.device.interface().i2c.done();
+            }
+
+            /// Issue #79: when the *first* chunk fails nothing was committed, so there is no
+            /// partial state to report. The caller gets the underlying cause instead, and
+            /// `PartialDataFlashWrite` is reserved for `committed > 0`.
+            #[tokio::test]
+            async fn test_df_write_first_chunk_failure_reports_underlying_error() {
+                let write = [0xAAu8; 96];
+                let nak = embedded_hal::i2c::ErrorKind::NoAcknowledge(embedded_hal::i2c::NoAcknowledgeSource::Address);
+
+                let mut chunk1 = vec![0x44, 34, 0x00, 0x40];
+                chunk1.extend_from_slice(&write[..32]);
+
+                let mut expectations = Vec::new();
+                for _ in 0..=DEFAULT_BUS_RETRIES {
+                    expectations.push(Transaction::write(BQ_ADDR, chunk1.clone()).with_error(nak));
+                }
+
+                let i2c = Mock::new(&expectations);
+                let mut bq = Bq40z50::new(i2c, NoopDelay::new());
+
+                assert_eq!(
+                    bq.write_dataflash(0x4000, &write).await,
+                    Err(BQ40Z50Error::I2c(nak))
+                );
+
+                bq.device.interface().i2c.done();
+            }
+
+            #[tokio::test]
+            async fn test_read_chem_id() {
+                // SLUUCN4B 16.1: "The second 2 bytes, "00 01", is the chem ID returning in little
+                // endian. That is 0x0100, chem ID 100." ChemID is therefore a 16-bit value.
+                let expectations = vec![
+                    Transaction::write(BQ_ADDR, vec![0x44, 0x02, 0x06, 0x00]),
+                    Transaction::write_read(BQ_ADDR, vec![0x44], vec![0x04, 0x06, 0x00, 0x00, 0x01]),
+                ];
+                let i2c = Mock::new(&expectations);
+                let mut bq = Device::new(DeviceInterface::new(i2c, NoopDelay::new()));
+
+                let chem_id = bq.mac_chem_id().dispatch_out_async().await.unwrap();
+                assert_eq!(chem_id.chem_id(), 0x0100);
+
+                bq.interface().i2c.done();
+            }
+
+            #[tokio::test]
+            async fn test_manufacture_info_is_byte_ordered() {
+                // SLUUCN4B 16.1.64 ManufacturerAccess() 0x0070 ManufacturerInfo: "Output 32 bytes
+                // of ManufacturerInfo on ManufacturerBlockAccess() or ManufacturerData() in the
+                // following format:
+                // AABBCCDDEEFFGGHHIIJJKKLLMMNNOOPPQQRRSSTTUUVVWWXXYYZZ112233445566".
+                // Thirty-two distinct labels means thirty-two independent bytes, so the block must
+                // decode in wire order. Modelled as 4 x little-endian u64 it came back reversed
+                // within each 8-byte group.
+                let data: Vec<u8> = (1..=32).collect();
+                let mut mac_block = vec![(data.len() + 2) as u8, 0x70, 0x00];
+                mac_block.extend_from_slice(&data);
+                let expectations = vec![
+                    Transaction::write(BQ_ADDR, vec![0x44, 0x02, 0x70, 0x00]),
+                    Transaction::write_read(BQ_ADDR, vec![0x44], mac_block),
+                ];
+                let i2c = Mock::new(&expectations);
+                let mut bq = Device::new(DeviceInterface::new(i2c, NoopDelay::new()));
+
+                let mac = bq.mac_manufacture_info().dispatch_out_async().await.unwrap();
+                let got = [
+                    mac.manufacture_info_0(),
+                    mac.manufacture_info_1(),
+                    mac.manufacture_info_2(),
+                    mac.manufacture_info_3(),
+                    mac.manufacture_info_4(),
+                    mac.manufacture_info_5(),
+                    mac.manufacture_info_6(),
+                    mac.manufacture_info_7(),
+                    mac.manufacture_info_8(),
+                    mac.manufacture_info_9(),
+                    mac.manufacture_info_10(),
+                    mac.manufacture_info_11(),
+                    mac.manufacture_info_12(),
+                    mac.manufacture_info_13(),
+                    mac.manufacture_info_14(),
+                    mac.manufacture_info_15(),
+                    mac.manufacture_info_16(),
+                    mac.manufacture_info_17(),
+                    mac.manufacture_info_18(),
+                    mac.manufacture_info_19(),
+                    mac.manufacture_info_20(),
+                    mac.manufacture_info_21(),
+                    mac.manufacture_info_22(),
+                    mac.manufacture_info_23(),
+                    mac.manufacture_info_24(),
+                    mac.manufacture_info_25(),
+                    mac.manufacture_info_26(),
+                    mac.manufacture_info_27(),
+                    mac.manufacture_info_28(),
+                    mac.manufacture_info_29(),
+                    mac.manufacture_info_30(),
+                    mac.manufacture_info_31(),
+                ];
+                assert_eq!(got.as_slice(), data.as_slice());
+
+                bq.interface().i2c.done();
+            }
+
+            #[tokio::test]
+            async fn test_gauge_status_3_reads_documented_length() {
+                // SLUUCN4B 16.1.69 ManufacturerAccess() 0x0075 GaugeStatus3: "Action: Output 24
+                // bytes of IT data values on ManufacturerBlockAccess() or ManufacturerData()".
+                // The MAC entry and the direct 0x75 register describe the same data, so both must
+                // put 24 bytes on the wire. The mock fails the transaction if the driver asks for
+                // any other length.
+                let mut block = vec![0x00u8; 24];
+                block[0] = 0x34;
+                block[1] = 0x12;
+                block[22] = 0x78;
+                block[23] = 0x56;
+                let mut mac_block = vec![(block.len() + 2) as u8, 0x75, 0x00];
+                mac_block.extend_from_slice(&block);
+                let expectations = vec![
+                    Transaction::write_read(BQ_ADDR, vec![0x75], block.clone()),
+                    Transaction::write(BQ_ADDR, vec![0x44, 0x02, 0x75, 0x00]),
+                    Transaction::write_read(BQ_ADDR, vec![0x44], mac_block),
+                ];
+                let i2c = Mock::new(&expectations);
+                let mut bq = Device::new(DeviceInterface::new(i2c, NoopDelay::new()));
+
+                let reg = bq.gauge_status_3().read_async().await.unwrap();
+                assert_eq!(reg.qmax_0(), 0x1234);
+                assert_eq!(reg.temp_a_factor(), 0x5678);
+
+                let mac = bq.mac_gauge_status_3().dispatch_out_async().await.unwrap();
+                assert_eq!(mac.qmax_0(), 0x1234);
+                assert_eq!(mac.temp_a_factor(), 0x5678);
+
+                bq.interface().i2c.done();
+            }
+
+            #[tokio::test]
+            async fn test_lifetime_data_block_1_discharge_is_signed() {
+                // SLUUCN4B 17.17 Data Flash Summary types Max Discharge Current, Max Avg Dsg
+                // Current and Max Avg Dsg Power as I2 with range -32768..0, while the adjacent
+                // Max Charge Current row is I2 with range 0..32767. A raw 0xFC18 must therefore
+                // decode as -1000, not 64536.
+                // r1 and r3 carry six extra temperature bytes at the end of this block, so the
+                // length comes in as a macro parameter.
+                let mut block = vec![
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0xE8, 0x03, 0x18, 0xFC, 0x7C, 0xFD, 0x9C, 0xFF,
+                ];
+                block.resize($lifetime_block_1_len, 0x00);
+                let mut mac_block = vec![(block.len() + 2) as u8, 0x60, 0x00];
+                mac_block.extend_from_slice(&block);
+                let expectations = vec![
+                    Transaction::write_read(BQ_ADDR, vec![0x60], block.clone()),
+                    Transaction::write(BQ_ADDR, vec![0x44, 0x02, 0x60, 0x00]),
+                    Transaction::write_read(BQ_ADDR, vec![0x44], mac_block),
+                ];
+                let i2c = Mock::new(&expectations);
+                let mut bq = Device::new(DeviceInterface::new(i2c, NoopDelay::new()));
+
+                let reg = bq.lifetime_data_block_1().read_async().await.unwrap();
+                assert_eq!(reg.max_charge_a(), 1000);
+                assert_eq!(reg.max_discharge_a(), -1000);
+                assert_eq!(reg.max_avg_discharge_a(), -644);
+                assert_eq!(reg.max_avg_discharge_pwr(), -100);
+
+                let mac = bq.mac_lifetime_data_block_1().dispatch_out_async().await.unwrap();
+                assert_eq!(mac.max_charge_a(), 1000);
+                assert_eq!(mac.max_discharge_a(), -1000);
+                assert_eq!(mac.max_avg_discharge_a(), -644);
+                assert_eq!(mac.max_avg_discharge_pwr(), -100);
+
+                bq.interface().i2c.done();
+            }
+
+            #[tokio::test]
+            async fn test_stop_output_ccadc_cal_sends_disable_subcommand() {
+                // SLUUCN4B 16.1.102 and 16.1.103 both give the Disable condition as
+                // "ManufacturingStatus()[CAL_EN] = 1 AND 0xF080 to ManufacturerAccess()", so both
+                // stop commands must put 0xF080 (little endian on the wire) on the bus, not the
+                // 0xF081/0xF082 enable subcommands.
+                let expectations = vec![
+                    Transaction::write(BQ_ADDR, vec![0x44, 0x02, 0x80, 0xF0]),
+                    Transaction::write(BQ_ADDR, vec![0x44, 0x02, 0x80, 0xF0]),
+                ];
+                let i2c = Mock::new(&expectations);
+                let mut bq = Device::new(DeviceInterface::new(i2c, NoopDelay::new()));
+
+                bq.mac_stop_output_ccadc_cal().dispatch_async().await.unwrap();
+                bq.mac_stop_output_shorted_ccadc_cal()
+                    .dispatch_async()
+                    .await
+                    .unwrap();
+
+                bq.interface().i2c.done();
             }
         }
     };

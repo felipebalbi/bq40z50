@@ -55,9 +55,9 @@ device Device {
     command MAC_CHEM_ID {
         address: 0x440600,
         fields-out: fieldset _ {
-            size-bytes: 1,
+            size-bytes: 2,
         
-            field CHEM_ID 7:0,
+            field CHEM_ID 15:0,
         },
     },
     command MAC_STATIC_CHEM_DF_SIG {
@@ -74,7 +74,7 @@ device Device {
         fields-out: fieldset _ {
             size-bytes: 2,
         
-            field STATIC_CHEM_DF_SIG 14:0,
+            field ALL_DF_SIG 14:0,
             field SIG_MISMATCH 15,
         },
     },
@@ -431,7 +431,7 @@ device Device {
             field FUSE_EN 8,
             field LED_EN 9,
             field LT_TEST 14,
-            field CAL_TEST 15,
+            field CAL_EN 15,
         },
     },
     command MAC_AFE_REG {
@@ -462,7 +462,7 @@ device Device {
             field AFE_SCD2 167:160,
         },
     },
-    command NO_LOAD_REM_CAP {
+    command MAC_NO_LOAD_REM_CAP {
         address: 0x445a00,
         fields-out: fieldset _ {
             size-bytes: 2,
@@ -485,9 +485,9 @@ device Device {
             field CELL_4_MIN_V 127:112,
             field MAX_DELTA_CELL_V 143:128,
             field MAX_CHARGE_A 159:144,
-            field MAX_DISCHARGE_A 175:160,
-            field MAX_AVG_DISCHARGE_A 191:176,
-            field MAX_AVG_DISCHARGE_PWR 207:192,
+            field MAX_DISCHARGE_A 175:160 -> int,
+            field MAX_AVG_DISCHARGE_A 191:176 -> int,
+            field MAX_AVG_DISCHARGE_PWR 207:192 -> int,
         },
     },
     command MAC_LIFETIME_DATA_BLOCK_2 {
@@ -789,10 +789,38 @@ device Device {
         fields-out: fieldset _ {
             size-bytes: 32,
         
-            field MANUFACTURE_INFO_0 63:0,
-            field MANUFACTURE_INFO_1 127:64,
-            field MANUFACTURE_INFO_2 191:128,
-            field MANUFACTURE_INFO_3 255:192,
+            field MANUFACTURE_INFO_0 7:0,
+            field MANUFACTURE_INFO_1 15:8,
+            field MANUFACTURE_INFO_2 23:16,
+            field MANUFACTURE_INFO_3 31:24,
+            field MANUFACTURE_INFO_4 39:32,
+            field MANUFACTURE_INFO_5 47:40,
+            field MANUFACTURE_INFO_6 55:48,
+            field MANUFACTURE_INFO_7 63:56,
+            field MANUFACTURE_INFO_8 71:64,
+            field MANUFACTURE_INFO_9 79:72,
+            field MANUFACTURE_INFO_10 87:80,
+            field MANUFACTURE_INFO_11 95:88,
+            field MANUFACTURE_INFO_12 103:96,
+            field MANUFACTURE_INFO_13 111:104,
+            field MANUFACTURE_INFO_14 119:112,
+            field MANUFACTURE_INFO_15 127:120,
+            field MANUFACTURE_INFO_16 135:128,
+            field MANUFACTURE_INFO_17 143:136,
+            field MANUFACTURE_INFO_18 151:144,
+            field MANUFACTURE_INFO_19 159:152,
+            field MANUFACTURE_INFO_20 167:160,
+            field MANUFACTURE_INFO_21 175:168,
+            field MANUFACTURE_INFO_22 183:176,
+            field MANUFACTURE_INFO_23 191:184,
+            field MANUFACTURE_INFO_24 199:192,
+            field MANUFACTURE_INFO_25 207:200,
+            field MANUFACTURE_INFO_26 215:208,
+            field MANUFACTURE_INFO_27 223:216,
+            field MANUFACTURE_INFO_28 231:224,
+            field MANUFACTURE_INFO_29 239:232,
+            field MANUFACTURE_INFO_30 247:240,
+            field MANUFACTURE_INFO_31 255:248,
         },
     },
     command MAC_DA_STATUS_1 {
@@ -896,7 +924,7 @@ device Device {
     command MAC_GAUGE_STATUS_3 {
         address: 0x447500,
         fields-out: fieldset _ {
-            size-bytes: 32,
+            size-bytes: 24,
         
             field QMAX_0 15:0,
             field QMAX_1 31:16,
@@ -954,10 +982,38 @@ device Device {
         fields-out: fieldset _ {
             size-bytes: 32,
         
-            field MANUFACTURE_INFO_B_0 63:0,
-            field MANUFACTURE_INFO_B_1 127:64,
-            field MANUFACTURE_INFO_B_2 191:128,
-            field MANUFACTURE_INFO_B_3 255:192,
+            field MANUFACTURE_INFO_B_0 7:0,
+            field MANUFACTURE_INFO_B_1 15:8,
+            field MANUFACTURE_INFO_B_2 23:16,
+            field MANUFACTURE_INFO_B_3 31:24,
+            field MANUFACTURE_INFO_B_4 39:32,
+            field MANUFACTURE_INFO_B_5 47:40,
+            field MANUFACTURE_INFO_B_6 55:48,
+            field MANUFACTURE_INFO_B_7 63:56,
+            field MANUFACTURE_INFO_B_8 71:64,
+            field MANUFACTURE_INFO_B_9 79:72,
+            field MANUFACTURE_INFO_B_10 87:80,
+            field MANUFACTURE_INFO_B_11 95:88,
+            field MANUFACTURE_INFO_B_12 103:96,
+            field MANUFACTURE_INFO_B_13 111:104,
+            field MANUFACTURE_INFO_B_14 119:112,
+            field MANUFACTURE_INFO_B_15 127:120,
+            field MANUFACTURE_INFO_B_16 135:128,
+            field MANUFACTURE_INFO_B_17 143:136,
+            field MANUFACTURE_INFO_B_18 151:144,
+            field MANUFACTURE_INFO_B_19 159:152,
+            field MANUFACTURE_INFO_B_20 167:160,
+            field MANUFACTURE_INFO_B_21 175:168,
+            field MANUFACTURE_INFO_B_22 183:176,
+            field MANUFACTURE_INFO_B_23 191:184,
+            field MANUFACTURE_INFO_B_24 199:192,
+            field MANUFACTURE_INFO_B_25 207:200,
+            field MANUFACTURE_INFO_B_26 215:208,
+            field MANUFACTURE_INFO_B_27 223:216,
+            field MANUFACTURE_INFO_B_28 231:224,
+            field MANUFACTURE_INFO_B_29 239:232,
+            field MANUFACTURE_INFO_B_30 247:240,
+            field MANUFACTURE_INFO_B_31 255:248,
         },
     },
     command MAC_LIFETIME_DATA_BLOCK_16 {
@@ -1687,7 +1743,7 @@ device Device {
             field FUSE_EN 8 RO,
             field LED_EN 9 RO,
             field LT_TEST 14 RO,
-            field CAL_TEST 15 RO,
+            field CAL_EN 15 RO,
         },
     },
     register AFE_REG {
@@ -1791,9 +1847,9 @@ device Device {
             field CELL_4_MIN_V 127:112 RO,
             field MAX_DELTA_CELL_V 143:128 RO,
             field MAX_CHARGE_A 159:144 RO,
-            field MAX_DISCHARGE_A 175:160 RO,
-            field MAX_AVG_DISCHARGE_A 191:176 RO,
-            field MAX_AVG_DISCHARGE_PWR 207:192 RO,
+            field MAX_DISCHARGE_A 175:160 RO -> int,
+            field MAX_AVG_DISCHARGE_A 191:176 RO -> int,
+            field MAX_AVG_DISCHARGE_PWR 207:192 RO -> int,
         },
     },
     register LIFETIME_DATA_BLOCK_2 {
@@ -1869,6 +1925,7 @@ device Device {
     },
     register LIFETIME_DATA_BLOCK_6 {
         address: 0x65,
+        access: RO,
         fields: fieldset _ {
             size-bytes: 32,
         
@@ -1884,6 +1941,7 @@ device Device {
     },
     register LIFETIME_DATA_BLOCK_7 {
         address: 0x66,
+        access: RO,
         fields: fieldset _ {
             size-bytes: 32,
         
@@ -1899,6 +1957,7 @@ device Device {
     },
     register LIFETIME_DATA_BLOCK_8 {
         address: 0x67,
+        access: RO,
         fields: fieldset _ {
             size-bytes: 32,
         
@@ -1934,6 +1993,7 @@ device Device {
     },
     register LIFETIME_DATA_BLOCK_11 {
         address: 0x6a,
+        access: RO,
         fields: fieldset _ {
             size-bytes: 32,
         
@@ -1949,6 +2009,7 @@ device Device {
     },
     register LIFETIME_DATA_BLOCK_12 {
         address: 0x6b,
+        access: RO,
         fields: fieldset _ {
             size-bytes: 32,
         
@@ -2033,6 +2094,7 @@ device Device {
     },
     register GAUGE_STATUS_2 {
         address: 0x74,
+        access: RO,
         fields: fieldset _ {
             size-bytes: 32,
         
@@ -2050,7 +2112,7 @@ device Device {
             field CELL_GRID_2 39:32 RO,
             field CELL_GRID_3 47:40 RO,
             field STATE_TIME 79:48 RO,
-            field DOD0_0 95:80,
+            field DOD0_0 95:80 RO,
             field DOD0_1 111:96 RO,
             field DOD0_2 127:112 RO,
             field DOD0_3 143:128 RO,

@@ -6,8 +6,8 @@ use embedded_hal_async::i2c::I2c as I2cTrait;
 
 use crate::common::{CapacityModeState, Config};
 use crate::consts::{
-    AUTH_KEY_CMD, AUTH_KEY_DATA_LEN_BYTES, AUTH_KEY_LEN_BYTES, LARGEST_REG_SIZE_BYTES, MAC_CMD,
-    MAC_CMD_ADDR_SIZE_BYTES, MFG_INFO_CMD, SECURITY_KEYS_CMD, SECURITY_KEYS_DATA_LEN_BYTES, SECURITY_KEYS_LEN_BYTES,
+    AUTH_KEY_CMD, AUTH_KEY_DATA_LEN_BYTES, LARGEST_REG_SIZE_BYTES, MAC_CMD, MAC_CMD_ADDR_SIZE_BYTES, MFG_INFO_CMD,
+    SECURITY_KEYS_CMD, SECURITY_KEYS_R1_DATA_LEN_BYTES,
 };
 use crate::error::BQ40Z50Error;
 use crate::interface::DeviceInterface;
@@ -63,7 +63,7 @@ impl<I2C: I2cTrait, DELAY: DelayTrait> Bq40z50R1<I2C, DELAY> {
     /// Will return `Err` if an I2C bus error occurs.
     pub async fn read_security_keys(
         &mut self,
-        output_buf: &mut [u8; SECURITY_KEYS_DATA_LEN_BYTES as usize],
+        output_buf: &mut [u8; SECURITY_KEYS_R1_DATA_LEN_BYTES as usize],
     ) -> Result<(), BQ40Z50Error<I2C::Error>> {
         let mut buf = [0u8; 2 + MAC_CMD_ADDR_SIZE_BYTES as usize];
         buf[0] = MAC_CMD;
@@ -83,11 +83,11 @@ impl<I2C: I2cTrait, DELAY: DelayTrait> Bq40z50R1<I2C, DELAY> {
     /// Will return `Err` if an I2C bus error occurs.
     pub async fn write_security_keys(
         &mut self,
-        security_keys: &[u8; SECURITY_KEYS_DATA_LEN_BYTES as usize],
+        security_keys: &[u8; SECURITY_KEYS_R1_DATA_LEN_BYTES as usize],
     ) -> Result<(), BQ40Z50Error<I2C::Error>> {
-        let mut buf = [0u8; 2 + MAC_CMD_ADDR_SIZE_BYTES as usize + SECURITY_KEYS_DATA_LEN_BYTES as usize];
+        let mut buf = [0u8; 2 + MAC_CMD_ADDR_SIZE_BYTES as usize + SECURITY_KEYS_R1_DATA_LEN_BYTES as usize];
         buf[0] = MAC_CMD;
-        buf[1] = SECURITY_KEYS_LEN_BYTES;
+        buf[1] = SECURITY_KEYS_R1_DATA_LEN_BYTES + MAC_CMD_ADDR_SIZE_BYTES;
         buf[2] = SECURITY_KEYS_CMD[0];
         buf[3] = SECURITY_KEYS_CMD[1];
         buf[4..].copy_from_slice(security_keys);
@@ -126,11 +126,11 @@ impl<I2C: I2cTrait, DELAY: DelayTrait> Bq40z50R1<I2C, DELAY> {
     /// Will return `Err` if an I2C bus error occurs.
     pub async fn write_authentication_key(
         &mut self,
-        auth_key: &[u8; AUTH_KEY_LEN_BYTES as usize],
+        auth_key: &[u8; AUTH_KEY_DATA_LEN_BYTES as usize],
     ) -> Result<(), BQ40Z50Error<I2C::Error>> {
-        let mut buf = [0u8; 2 + MAC_CMD_ADDR_SIZE_BYTES as usize + AUTH_KEY_LEN_BYTES as usize];
+        let mut buf = [0u8; 2 + MAC_CMD_ADDR_SIZE_BYTES as usize + AUTH_KEY_DATA_LEN_BYTES as usize];
         buf[0] = MAC_CMD;
-        buf[1] = AUTH_KEY_LEN_BYTES;
+        buf[1] = AUTH_KEY_DATA_LEN_BYTES + MAC_CMD_ADDR_SIZE_BYTES;
         buf[2] = AUTH_KEY_CMD[0];
         buf[3] = AUTH_KEY_CMD[1];
         buf[4..].copy_from_slice(auth_key);
@@ -309,7 +309,8 @@ impl<I2C: I2cTrait, DELAY: DelayTrait> Bq40z50R1<I2C, DELAY> {
 
     /// Read from the data flash (DF). Refer to the datasheet for the data flash table.
     ///
-    /// Starting address should be between 0x4000 and 0x5FFF.
+    /// The whole transfer must lie inside the data flash window, that is `starting_address` and
+    /// `starting_address + read.len() - 1` must both be between 0x4000 and 0x5FFF.
     /// The input argument `read` slice size should reflect the desired number of bytes to be read.
     ///
     /// # Note
@@ -318,7 +319,14 @@ impl<I2C: I2cTrait, DELAY: DelayTrait> Bq40z50R1<I2C, DELAY> {
     /// Thus, the input argument `read` slice length can be larger than 32 bytes.
     /// # Errors
     ///
-    /// Will return `Err` if an I2C bus error occurs.
+    /// Will return [`BQ40Z50Error::DataFlashAddressOutOfRange`] if the transfer does not lie
+    /// entirely inside the 0x4000-0x5FFF window. The address is checked before any bus traffic is
+    /// generated, so a rejected read leaves `read` untouched.
+    ///
+    /// Will return `Err` if an I2C bus error occurs, or [`BQ40Z50Error::Pec`] if PEC checking is
+    /// enabled and a block still fails its check after all retries are exhausted. A block that
+    /// fails its PEC check is always re-read from its own address, so a successful call never
+    /// returns data from a neighbouring block.
     pub async fn read_dataflash(
         &mut self,
         starting_address: u16,
@@ -339,7 +347,8 @@ impl<I2C: I2cTrait, DELAY: DelayTrait> Bq40z50R1<I2C, DELAY> {
 
     /// Write to the data flash (DF). Refer to the datasheet for the data flash table.
     ///
-    /// Starting address should be between 0x4000 and 0x5FFF.
+    /// The whole transfer must lie inside the data flash window, that is `starting_address` and
+    /// `starting_address + write.len() - 1` must both be between 0x4000 and 0x5FFF.
     /// The input argument `write` slice size should reflect the desired number of bytes to be written.
     ///
     /// # Note
@@ -347,15 +356,24 @@ impl<I2C: I2cTrait, DELAY: DelayTrait> Bq40z50R1<I2C, DELAY> {
     /// handle writes of larger than 32 bytes. On the physical bus, the writes will be chunked into 32 byte blocks.
     /// Thus, the input argument `write` slice length can be larger than 32 bytes.
     ///
-    /// # Partial writes
-    ///
-    /// Writes are not atomic: each chunk is committed independently. On error, earlier chunks are not rolled back,
-    /// and the failing chunk may also have been accepted by the gauge. The error does not report write progress.
-    /// Retrying the whole operation rewrites earlier chunks. Callers must verify the affected data and handle recovery.
+    /// Each 32 byte chunk is committed to flash as it is sent. This write is therefore **not
+    /// atomic**: if a later chunk fails, the earlier chunks have already been written and the
+    /// driver cannot roll them back.
     ///
     /// # Errors
     ///
-    /// Will return `Err` if an I2C bus error occurs.
+    /// Will return [`BQ40Z50Error::DataFlashAddressOutOfRange`] if the transfer does not lie
+    /// entirely inside the 0x4000-0x5FFF window. The address is checked before any bus traffic is
+    /// generated, so a rejected write modifies no data flash.
+    ///
+    /// Will return [`BQ40Z50Error::PartialDataFlashWrite`] if a chunk fails after at least one
+    /// earlier chunk was committed. Its `committed` field is the number of bytes from the start of
+    /// `write` that reached data flash; the remaining `write.len() - committed` bytes did not.
+    /// Deciding how to recover, for example by retrying from `committed`, is left to the caller.
+    ///
+    /// Will return `Err` if an I2C bus error occurs. If the very first chunk fails then nothing was
+    /// committed and the underlying error is returned rather than
+    /// [`BQ40Z50Error::PartialDataFlashWrite`].
     pub async fn write_dataflash(
         &mut self,
         starting_address: u16,
@@ -370,4 +388,4 @@ impl<I2C: I2cTrait, DELAY: DelayTrait> Bq40z50R1<I2C, DELAY> {
 
 crate::common::implement_embedded_batteries!(Bq40z50R1);
 
-crate::tests::bq40z50_tests!(Bq40z50R1);
+crate::tests::bq40z50_tests!(Bq40z50R1, 8, 32);

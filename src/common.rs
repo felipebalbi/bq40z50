@@ -43,11 +43,11 @@ pub(crate) enum CapacityModeState {
 /// Charging Voltage Override config struct used in MAC command 0x00B0, not used in R1
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ChargingVoltageOverride {
-    pub low_temp_chrg_mv: u16,
-    pub std_low_temp_chrg_mv: u16,
-    pub std_hi_temp_chrg_mv: u16,
-    pub hi_temp_chrg_mv: u16,
-    pub recommended_temp_chrg_mv: u16,
+    pub low_temp_chrg_mv: i16,
+    pub std_low_temp_chrg_mv: i16,
+    pub std_hi_temp_chrg_mv: i16,
+    pub hi_temp_chrg_mv: i16,
+    pub recommended_temp_chrg_mv: i16,
 }
 
 macro_rules! implement_embedded_batteries {
@@ -122,14 +122,18 @@ macro_rules! implement_embedded_batteries {
                 &mut self,
                 capacity: smart_battery::CapacityModeValue,
             ) -> Result<(), Self::Error> {
+                // The register unit is selected by BatteryMode()[CAPACITY_MODE], not by the caller.
+                // Converting between mA and cW needs the pack voltage, so a mismatch is an error.
+                let ((CapacityModeValue::MilliAmpUnsigned(capacity), CapacityModeState::Milliamps)
+                | (CapacityModeValue::CentiWattUnsigned(capacity), CapacityModeState::Centiwatt)) =
+                    (capacity, self.capacity_mode_state.get())
+                else {
+                    return Err(BQ40Z50Error::CapacityModeMismatch);
+                };
+
                 self.device
                     .remaining_capacity_alarm()
-                    .write_async(|d| {
-                        d.set_remaining_capacity_alarm(match capacity {
-                            CapacityModeValue::MilliAmpUnsigned(value)
-                            | CapacityModeValue::CentiWattUnsigned(value) => value,
-                        });
-                    })
+                    .write_async(|d| d.set_remaining_capacity_alarm(capacity))
                     .await
             }
 
@@ -150,15 +154,20 @@ macro_rules! implement_embedded_batteries {
             }
 
             async fn battery_mode(&mut self) -> Result<BatteryModeFields, Self::Error> {
-                Ok(self.device.battery_mode().read_async().await?.into())
+                let flags: BatteryModeFields = self.device.battery_mode().read_async().await?.into();
+                // A read returns the CAPACITY_MODE actually latched in the part, so refresh the cache.
+                self.set_capacity_mode_state(flags);
+                Ok(flags)
             }
 
             async fn set_battery_mode(&mut self, flags: BatteryModeFields) -> Result<(), Self::Error> {
-                self.set_capacity_mode_state(flags);
                 self.device
                     .battery_mode()
                     .write_async(|f| *f = flags.into())
-                    .await
+                    .await?;
+                // Only latch the new reporting unit once the part has actually accepted the write.
+                self.set_capacity_mode_state(flags);
+                Ok(())
             }
 
             async fn at_rate(&mut self) -> Result<smart_battery::CapacityModeSignedValue, Self::Error> {
@@ -173,15 +182,16 @@ macro_rules! implement_embedded_batteries {
             }
 
             async fn set_at_rate(&mut self, rate: smart_battery::CapacityModeSignedValue) -> Result<(), Self::Error> {
-                self.device
-                    .at_rate()
-                    .write_async(|f| {
-                        f.set_at_rate(match rate {
-                            CapacityModeSignedValue::MilliAmpSigned(value)
-                            | CapacityModeSignedValue::CentiWattSigned(value) => value,
-                        });
-                    })
-                    .await
+                // The register unit is selected by BatteryMode()[CAPACITY_MODE], not by the caller.
+                // Converting between mA and cW needs the pack voltage, so a mismatch is an error.
+                let ((CapacityModeSignedValue::MilliAmpSigned(rate), CapacityModeState::Milliamps)
+                | (CapacityModeSignedValue::CentiWattSigned(rate), CapacityModeState::Centiwatt)) =
+                    (rate, self.capacity_mode_state.get())
+                else {
+                    return Err(BQ40Z50Error::CapacityModeMismatch);
+                };
+
+                self.device.at_rate().write_async(|f| f.set_at_rate(rate)).await
             }
 
             async fn at_rate_time_to_full(&mut self) -> Result<smart_battery::Minutes, Self::Error> {

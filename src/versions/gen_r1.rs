@@ -1482,7 +1482,7 @@ impl<I> Device<I> {
     #[doc(alias = "GAUGE_STATUS_2")]
     pub fn gauge_status_2(
         &mut self,
-    ) -> ::device_driver::RegisterOperation<'_, Self, GaugeStatus2, u8, ::device_driver::RW, ()>
+    ) -> ::device_driver::RegisterOperation<'_, Self, GaugeStatus2, u8, ::device_driver::RO, ()>
     where
         I: ::device_driver::RegisterInterfaceBase<AddressType = u8>,
     {
@@ -2403,15 +2403,6 @@ impl GaugeStatus2 {
         let end = 255;
         let raw = unsafe { ::device_driver::ops::load::<u16, ::device_driver::ops::LE>(&self.bits, start, end) };
         raw
-    }
-    /// `95:80` - Set the `dod_0_0` field.
-    ///
-    #[doc(alias = "DOD0_0")]
-    pub fn set_dod_0_0(&mut self, value: u16) {
-        let start = 80;
-        let end = 95;
-        let raw = value;
-        unsafe { ::device_driver::ops::store::<u16, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
     }
 }
 impl Default for GaugeStatus2 {
@@ -4353,30 +4344,30 @@ impl LifetimeDataBlock1 {
     ///
     #[doc(alias = "MAX_DISCHARGE_A")]
     #[must_use]
-    pub fn max_discharge_a(&self) -> u16 {
+    pub fn max_discharge_a(&self) -> i16 {
         let start = 160;
         let end = 175;
-        let raw = unsafe { ::device_driver::ops::load::<u16, ::device_driver::ops::LE>(&self.bits, start, end) };
+        let raw = unsafe { ::device_driver::ops::load::<i16, ::device_driver::ops::LE>(&self.bits, start, end) };
         raw
     }
     /// `191:176` - Read the `max_avg_discharge_a` field.
     ///
     #[doc(alias = "MAX_AVG_DISCHARGE_A")]
     #[must_use]
-    pub fn max_avg_discharge_a(&self) -> u16 {
+    pub fn max_avg_discharge_a(&self) -> i16 {
         let start = 176;
         let end = 191;
-        let raw = unsafe { ::device_driver::ops::load::<u16, ::device_driver::ops::LE>(&self.bits, start, end) };
+        let raw = unsafe { ::device_driver::ops::load::<i16, ::device_driver::ops::LE>(&self.bits, start, end) };
         raw
     }
     /// `207:192` - Read the `max_avg_discharge_pwr` field.
     ///
     #[doc(alias = "MAX_AVG_DISCHARGE_PWR")]
     #[must_use]
-    pub fn max_avg_discharge_pwr(&self) -> u16 {
+    pub fn max_avg_discharge_pwr(&self) -> i16 {
         let start = 192;
         let end = 207;
-        let raw = unsafe { ::device_driver::ops::load::<u16, ::device_driver::ops::LE>(&self.bits, start, end) };
+        let raw = unsafe { ::device_driver::ops::load::<i16, ::device_driver::ops::LE>(&self.bits, start, end) };
         raw
     }
     /// `215:208` - Read the `max_temp_cell` field.
@@ -4494,9 +4485,9 @@ impl defmt::Format for LifetimeDataBlock1 {
         defmt::write!(f, "cell_4_min_v: {=u16}, ", &self.cell_4_min_v());
         defmt::write!(f, "max_delta_cell_v: {=u16}, ", &self.max_delta_cell_v());
         defmt::write!(f, "max_charge_a: {=u16}, ", &self.max_charge_a());
-        defmt::write!(f, "max_discharge_a: {=u16}, ", &self.max_discharge_a());
-        defmt::write!(f, "max_avg_discharge_a: {=u16}, ", &self.max_avg_discharge_a());
-        defmt::write!(f, "max_avg_discharge_pwr: {=u16}, ", &self.max_avg_discharge_pwr());
+        defmt::write!(f, "max_discharge_a: {=i16}, ", &self.max_discharge_a());
+        defmt::write!(f, "max_avg_discharge_a: {=i16}, ", &self.max_avg_discharge_a());
+        defmt::write!(f, "max_avg_discharge_pwr: {=i16}, ", &self.max_avg_discharge_pwr());
         defmt::write!(f, "max_temp_cell: {=u8}, ", &self.max_temp_cell());
         defmt::write!(f, "min_temp_cell: {=u8}, ", &self.min_temp_cell());
         defmt::write!(f, "max_delta_cell_temp: {=u8}, ", &self.max_delta_cell_temp());
@@ -15713,81 +15704,613 @@ unsafe impl ::device_driver::Fieldset for MacManufactureInfo {
     const ZERO: Self = Self { bits: [0; 32] };
 }
 impl MacManufactureInfo {
-    /// `63:0` - Read the `manufacture_info_0` field.
+    /// `7:0` - Read the `manufacture_info_0` field.
     ///
     #[doc(alias = "MANUFACTURE_INFO_0")]
     #[must_use]
-    pub fn manufacture_info_0(&self) -> u64 {
+    pub fn manufacture_info_0(&self) -> u8 {
         let start = 0;
-        let end = 63;
-        let raw = unsafe { ::device_driver::ops::load::<u64, ::device_driver::ops::LE>(&self.bits, start, end) };
+        let end = 7;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
         raw
     }
-    /// `127:64` - Read the `manufacture_info_1` field.
+    /// `15:8` - Read the `manufacture_info_1` field.
     ///
     #[doc(alias = "MANUFACTURE_INFO_1")]
     #[must_use]
-    pub fn manufacture_info_1(&self) -> u64 {
-        let start = 64;
-        let end = 127;
-        let raw = unsafe { ::device_driver::ops::load::<u64, ::device_driver::ops::LE>(&self.bits, start, end) };
+    pub fn manufacture_info_1(&self) -> u8 {
+        let start = 8;
+        let end = 15;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
         raw
     }
-    /// `191:128` - Read the `manufacture_info_2` field.
+    /// `23:16` - Read the `manufacture_info_2` field.
     ///
     #[doc(alias = "MANUFACTURE_INFO_2")]
     #[must_use]
-    pub fn manufacture_info_2(&self) -> u64 {
-        let start = 128;
-        let end = 191;
-        let raw = unsafe { ::device_driver::ops::load::<u64, ::device_driver::ops::LE>(&self.bits, start, end) };
+    pub fn manufacture_info_2(&self) -> u8 {
+        let start = 16;
+        let end = 23;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
         raw
     }
-    /// `255:192` - Read the `manufacture_info_3` field.
+    /// `31:24` - Read the `manufacture_info_3` field.
     ///
     #[doc(alias = "MANUFACTURE_INFO_3")]
     #[must_use]
-    pub fn manufacture_info_3(&self) -> u64 {
-        let start = 192;
-        let end = 255;
-        let raw = unsafe { ::device_driver::ops::load::<u64, ::device_driver::ops::LE>(&self.bits, start, end) };
+    pub fn manufacture_info_3(&self) -> u8 {
+        let start = 24;
+        let end = 31;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
         raw
     }
-    /// `63:0` - Set the `manufacture_info_0` field.
+    /// `39:32` - Read the `manufacture_info_4` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_4")]
+    #[must_use]
+    pub fn manufacture_info_4(&self) -> u8 {
+        let start = 32;
+        let end = 39;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `47:40` - Read the `manufacture_info_5` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_5")]
+    #[must_use]
+    pub fn manufacture_info_5(&self) -> u8 {
+        let start = 40;
+        let end = 47;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `55:48` - Read the `manufacture_info_6` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_6")]
+    #[must_use]
+    pub fn manufacture_info_6(&self) -> u8 {
+        let start = 48;
+        let end = 55;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `63:56` - Read the `manufacture_info_7` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_7")]
+    #[must_use]
+    pub fn manufacture_info_7(&self) -> u8 {
+        let start = 56;
+        let end = 63;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `71:64` - Read the `manufacture_info_8` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_8")]
+    #[must_use]
+    pub fn manufacture_info_8(&self) -> u8 {
+        let start = 64;
+        let end = 71;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `79:72` - Read the `manufacture_info_9` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_9")]
+    #[must_use]
+    pub fn manufacture_info_9(&self) -> u8 {
+        let start = 72;
+        let end = 79;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `87:80` - Read the `manufacture_info_10` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_10")]
+    #[must_use]
+    pub fn manufacture_info_10(&self) -> u8 {
+        let start = 80;
+        let end = 87;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `95:88` - Read the `manufacture_info_11` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_11")]
+    #[must_use]
+    pub fn manufacture_info_11(&self) -> u8 {
+        let start = 88;
+        let end = 95;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `103:96` - Read the `manufacture_info_12` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_12")]
+    #[must_use]
+    pub fn manufacture_info_12(&self) -> u8 {
+        let start = 96;
+        let end = 103;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `111:104` - Read the `manufacture_info_13` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_13")]
+    #[must_use]
+    pub fn manufacture_info_13(&self) -> u8 {
+        let start = 104;
+        let end = 111;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `119:112` - Read the `manufacture_info_14` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_14")]
+    #[must_use]
+    pub fn manufacture_info_14(&self) -> u8 {
+        let start = 112;
+        let end = 119;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `127:120` - Read the `manufacture_info_15` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_15")]
+    #[must_use]
+    pub fn manufacture_info_15(&self) -> u8 {
+        let start = 120;
+        let end = 127;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `135:128` - Read the `manufacture_info_16` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_16")]
+    #[must_use]
+    pub fn manufacture_info_16(&self) -> u8 {
+        let start = 128;
+        let end = 135;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `143:136` - Read the `manufacture_info_17` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_17")]
+    #[must_use]
+    pub fn manufacture_info_17(&self) -> u8 {
+        let start = 136;
+        let end = 143;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `151:144` - Read the `manufacture_info_18` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_18")]
+    #[must_use]
+    pub fn manufacture_info_18(&self) -> u8 {
+        let start = 144;
+        let end = 151;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `159:152` - Read the `manufacture_info_19` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_19")]
+    #[must_use]
+    pub fn manufacture_info_19(&self) -> u8 {
+        let start = 152;
+        let end = 159;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `167:160` - Read the `manufacture_info_20` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_20")]
+    #[must_use]
+    pub fn manufacture_info_20(&self) -> u8 {
+        let start = 160;
+        let end = 167;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `175:168` - Read the `manufacture_info_21` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_21")]
+    #[must_use]
+    pub fn manufacture_info_21(&self) -> u8 {
+        let start = 168;
+        let end = 175;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `183:176` - Read the `manufacture_info_22` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_22")]
+    #[must_use]
+    pub fn manufacture_info_22(&self) -> u8 {
+        let start = 176;
+        let end = 183;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `191:184` - Read the `manufacture_info_23` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_23")]
+    #[must_use]
+    pub fn manufacture_info_23(&self) -> u8 {
+        let start = 184;
+        let end = 191;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `199:192` - Read the `manufacture_info_24` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_24")]
+    #[must_use]
+    pub fn manufacture_info_24(&self) -> u8 {
+        let start = 192;
+        let end = 199;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `207:200` - Read the `manufacture_info_25` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_25")]
+    #[must_use]
+    pub fn manufacture_info_25(&self) -> u8 {
+        let start = 200;
+        let end = 207;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `215:208` - Read the `manufacture_info_26` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_26")]
+    #[must_use]
+    pub fn manufacture_info_26(&self) -> u8 {
+        let start = 208;
+        let end = 215;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `223:216` - Read the `manufacture_info_27` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_27")]
+    #[must_use]
+    pub fn manufacture_info_27(&self) -> u8 {
+        let start = 216;
+        let end = 223;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `231:224` - Read the `manufacture_info_28` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_28")]
+    #[must_use]
+    pub fn manufacture_info_28(&self) -> u8 {
+        let start = 224;
+        let end = 231;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `239:232` - Read the `manufacture_info_29` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_29")]
+    #[must_use]
+    pub fn manufacture_info_29(&self) -> u8 {
+        let start = 232;
+        let end = 239;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `247:240` - Read the `manufacture_info_30` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_30")]
+    #[must_use]
+    pub fn manufacture_info_30(&self) -> u8 {
+        let start = 240;
+        let end = 247;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `255:248` - Read the `manufacture_info_31` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_31")]
+    #[must_use]
+    pub fn manufacture_info_31(&self) -> u8 {
+        let start = 248;
+        let end = 255;
+        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        raw
+    }
+    /// `7:0` - Set the `manufacture_info_0` field.
     ///
     #[doc(alias = "MANUFACTURE_INFO_0")]
-    pub fn set_manufacture_info_0(&mut self, value: u64) {
+    pub fn set_manufacture_info_0(&mut self, value: u8) {
         let start = 0;
-        let end = 63;
+        let end = 7;
         let raw = value;
-        unsafe { ::device_driver::ops::store::<u64, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
     }
-    /// `127:64` - Set the `manufacture_info_1` field.
+    /// `15:8` - Set the `manufacture_info_1` field.
     ///
     #[doc(alias = "MANUFACTURE_INFO_1")]
-    pub fn set_manufacture_info_1(&mut self, value: u64) {
-        let start = 64;
-        let end = 127;
+    pub fn set_manufacture_info_1(&mut self, value: u8) {
+        let start = 8;
+        let end = 15;
         let raw = value;
-        unsafe { ::device_driver::ops::store::<u64, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
     }
-    /// `191:128` - Set the `manufacture_info_2` field.
+    /// `23:16` - Set the `manufacture_info_2` field.
     ///
     #[doc(alias = "MANUFACTURE_INFO_2")]
-    pub fn set_manufacture_info_2(&mut self, value: u64) {
-        let start = 128;
-        let end = 191;
+    pub fn set_manufacture_info_2(&mut self, value: u8) {
+        let start = 16;
+        let end = 23;
         let raw = value;
-        unsafe { ::device_driver::ops::store::<u64, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
     }
-    /// `255:192` - Set the `manufacture_info_3` field.
+    /// `31:24` - Set the `manufacture_info_3` field.
     ///
     #[doc(alias = "MANUFACTURE_INFO_3")]
-    pub fn set_manufacture_info_3(&mut self, value: u64) {
+    pub fn set_manufacture_info_3(&mut self, value: u8) {
+        let start = 24;
+        let end = 31;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `39:32` - Set the `manufacture_info_4` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_4")]
+    pub fn set_manufacture_info_4(&mut self, value: u8) {
+        let start = 32;
+        let end = 39;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `47:40` - Set the `manufacture_info_5` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_5")]
+    pub fn set_manufacture_info_5(&mut self, value: u8) {
+        let start = 40;
+        let end = 47;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `55:48` - Set the `manufacture_info_6` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_6")]
+    pub fn set_manufacture_info_6(&mut self, value: u8) {
+        let start = 48;
+        let end = 55;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `63:56` - Set the `manufacture_info_7` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_7")]
+    pub fn set_manufacture_info_7(&mut self, value: u8) {
+        let start = 56;
+        let end = 63;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `71:64` - Set the `manufacture_info_8` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_8")]
+    pub fn set_manufacture_info_8(&mut self, value: u8) {
+        let start = 64;
+        let end = 71;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `79:72` - Set the `manufacture_info_9` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_9")]
+    pub fn set_manufacture_info_9(&mut self, value: u8) {
+        let start = 72;
+        let end = 79;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `87:80` - Set the `manufacture_info_10` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_10")]
+    pub fn set_manufacture_info_10(&mut self, value: u8) {
+        let start = 80;
+        let end = 87;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `95:88` - Set the `manufacture_info_11` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_11")]
+    pub fn set_manufacture_info_11(&mut self, value: u8) {
+        let start = 88;
+        let end = 95;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `103:96` - Set the `manufacture_info_12` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_12")]
+    pub fn set_manufacture_info_12(&mut self, value: u8) {
+        let start = 96;
+        let end = 103;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `111:104` - Set the `manufacture_info_13` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_13")]
+    pub fn set_manufacture_info_13(&mut self, value: u8) {
+        let start = 104;
+        let end = 111;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `119:112` - Set the `manufacture_info_14` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_14")]
+    pub fn set_manufacture_info_14(&mut self, value: u8) {
+        let start = 112;
+        let end = 119;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `127:120` - Set the `manufacture_info_15` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_15")]
+    pub fn set_manufacture_info_15(&mut self, value: u8) {
+        let start = 120;
+        let end = 127;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `135:128` - Set the `manufacture_info_16` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_16")]
+    pub fn set_manufacture_info_16(&mut self, value: u8) {
+        let start = 128;
+        let end = 135;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `143:136` - Set the `manufacture_info_17` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_17")]
+    pub fn set_manufacture_info_17(&mut self, value: u8) {
+        let start = 136;
+        let end = 143;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `151:144` - Set the `manufacture_info_18` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_18")]
+    pub fn set_manufacture_info_18(&mut self, value: u8) {
+        let start = 144;
+        let end = 151;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `159:152` - Set the `manufacture_info_19` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_19")]
+    pub fn set_manufacture_info_19(&mut self, value: u8) {
+        let start = 152;
+        let end = 159;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `167:160` - Set the `manufacture_info_20` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_20")]
+    pub fn set_manufacture_info_20(&mut self, value: u8) {
+        let start = 160;
+        let end = 167;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `175:168` - Set the `manufacture_info_21` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_21")]
+    pub fn set_manufacture_info_21(&mut self, value: u8) {
+        let start = 168;
+        let end = 175;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `183:176` - Set the `manufacture_info_22` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_22")]
+    pub fn set_manufacture_info_22(&mut self, value: u8) {
+        let start = 176;
+        let end = 183;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `191:184` - Set the `manufacture_info_23` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_23")]
+    pub fn set_manufacture_info_23(&mut self, value: u8) {
+        let start = 184;
+        let end = 191;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `199:192` - Set the `manufacture_info_24` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_24")]
+    pub fn set_manufacture_info_24(&mut self, value: u8) {
         let start = 192;
+        let end = 199;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `207:200` - Set the `manufacture_info_25` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_25")]
+    pub fn set_manufacture_info_25(&mut self, value: u8) {
+        let start = 200;
+        let end = 207;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `215:208` - Set the `manufacture_info_26` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_26")]
+    pub fn set_manufacture_info_26(&mut self, value: u8) {
+        let start = 208;
+        let end = 215;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `223:216` - Set the `manufacture_info_27` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_27")]
+    pub fn set_manufacture_info_27(&mut self, value: u8) {
+        let start = 216;
+        let end = 223;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `231:224` - Set the `manufacture_info_28` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_28")]
+    pub fn set_manufacture_info_28(&mut self, value: u8) {
+        let start = 224;
+        let end = 231;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `239:232` - Set the `manufacture_info_29` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_29")]
+    pub fn set_manufacture_info_29(&mut self, value: u8) {
+        let start = 232;
+        let end = 239;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `247:240` - Set the `manufacture_info_30` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_30")]
+    pub fn set_manufacture_info_30(&mut self, value: u8) {
+        let start = 240;
+        let end = 247;
+        let raw = value;
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+    }
+    /// `255:248` - Set the `manufacture_info_31` field.
+    ///
+    #[doc(alias = "MANUFACTURE_INFO_31")]
+    pub fn set_manufacture_info_31(&mut self, value: u8) {
+        let start = 248;
         let end = 255;
         let raw = value;
-        unsafe { ::device_driver::ops::store::<u64, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
     }
 }
 impl Default for MacManufactureInfo {
@@ -15812,6 +16335,34 @@ impl core::fmt::Debug for MacManufactureInfo {
         d.field("manufacture_info_1", &self.manufacture_info_1());
         d.field("manufacture_info_2", &self.manufacture_info_2());
         d.field("manufacture_info_3", &self.manufacture_info_3());
+        d.field("manufacture_info_4", &self.manufacture_info_4());
+        d.field("manufacture_info_5", &self.manufacture_info_5());
+        d.field("manufacture_info_6", &self.manufacture_info_6());
+        d.field("manufacture_info_7", &self.manufacture_info_7());
+        d.field("manufacture_info_8", &self.manufacture_info_8());
+        d.field("manufacture_info_9", &self.manufacture_info_9());
+        d.field("manufacture_info_10", &self.manufacture_info_10());
+        d.field("manufacture_info_11", &self.manufacture_info_11());
+        d.field("manufacture_info_12", &self.manufacture_info_12());
+        d.field("manufacture_info_13", &self.manufacture_info_13());
+        d.field("manufacture_info_14", &self.manufacture_info_14());
+        d.field("manufacture_info_15", &self.manufacture_info_15());
+        d.field("manufacture_info_16", &self.manufacture_info_16());
+        d.field("manufacture_info_17", &self.manufacture_info_17());
+        d.field("manufacture_info_18", &self.manufacture_info_18());
+        d.field("manufacture_info_19", &self.manufacture_info_19());
+        d.field("manufacture_info_20", &self.manufacture_info_20());
+        d.field("manufacture_info_21", &self.manufacture_info_21());
+        d.field("manufacture_info_22", &self.manufacture_info_22());
+        d.field("manufacture_info_23", &self.manufacture_info_23());
+        d.field("manufacture_info_24", &self.manufacture_info_24());
+        d.field("manufacture_info_25", &self.manufacture_info_25());
+        d.field("manufacture_info_26", &self.manufacture_info_26());
+        d.field("manufacture_info_27", &self.manufacture_info_27());
+        d.field("manufacture_info_28", &self.manufacture_info_28());
+        d.field("manufacture_info_29", &self.manufacture_info_29());
+        d.field("manufacture_info_30", &self.manufacture_info_30());
+        d.field("manufacture_info_31", &self.manufacture_info_31());
         d.finish()
     }
 }
@@ -15819,10 +16370,38 @@ impl core::fmt::Debug for MacManufactureInfo {
 impl defmt::Format for MacManufactureInfo {
     fn format(&self, f: defmt::Formatter) {
         defmt::write!(f, "MacManufactureInfo {{ ");
-        defmt::write!(f, "manufacture_info_0: {=u64}, ", &self.manufacture_info_0());
-        defmt::write!(f, "manufacture_info_1: {=u64}, ", &self.manufacture_info_1());
-        defmt::write!(f, "manufacture_info_2: {=u64}, ", &self.manufacture_info_2());
-        defmt::write!(f, "manufacture_info_3: {=u64}, ", &self.manufacture_info_3());
+        defmt::write!(f, "manufacture_info_0: {=u8}, ", &self.manufacture_info_0());
+        defmt::write!(f, "manufacture_info_1: {=u8}, ", &self.manufacture_info_1());
+        defmt::write!(f, "manufacture_info_2: {=u8}, ", &self.manufacture_info_2());
+        defmt::write!(f, "manufacture_info_3: {=u8}, ", &self.manufacture_info_3());
+        defmt::write!(f, "manufacture_info_4: {=u8}, ", &self.manufacture_info_4());
+        defmt::write!(f, "manufacture_info_5: {=u8}, ", &self.manufacture_info_5());
+        defmt::write!(f, "manufacture_info_6: {=u8}, ", &self.manufacture_info_6());
+        defmt::write!(f, "manufacture_info_7: {=u8}, ", &self.manufacture_info_7());
+        defmt::write!(f, "manufacture_info_8: {=u8}, ", &self.manufacture_info_8());
+        defmt::write!(f, "manufacture_info_9: {=u8}, ", &self.manufacture_info_9());
+        defmt::write!(f, "manufacture_info_10: {=u8}, ", &self.manufacture_info_10());
+        defmt::write!(f, "manufacture_info_11: {=u8}, ", &self.manufacture_info_11());
+        defmt::write!(f, "manufacture_info_12: {=u8}, ", &self.manufacture_info_12());
+        defmt::write!(f, "manufacture_info_13: {=u8}, ", &self.manufacture_info_13());
+        defmt::write!(f, "manufacture_info_14: {=u8}, ", &self.manufacture_info_14());
+        defmt::write!(f, "manufacture_info_15: {=u8}, ", &self.manufacture_info_15());
+        defmt::write!(f, "manufacture_info_16: {=u8}, ", &self.manufacture_info_16());
+        defmt::write!(f, "manufacture_info_17: {=u8}, ", &self.manufacture_info_17());
+        defmt::write!(f, "manufacture_info_18: {=u8}, ", &self.manufacture_info_18());
+        defmt::write!(f, "manufacture_info_19: {=u8}, ", &self.manufacture_info_19());
+        defmt::write!(f, "manufacture_info_20: {=u8}, ", &self.manufacture_info_20());
+        defmt::write!(f, "manufacture_info_21: {=u8}, ", &self.manufacture_info_21());
+        defmt::write!(f, "manufacture_info_22: {=u8}, ", &self.manufacture_info_22());
+        defmt::write!(f, "manufacture_info_23: {=u8}, ", &self.manufacture_info_23());
+        defmt::write!(f, "manufacture_info_24: {=u8}, ", &self.manufacture_info_24());
+        defmt::write!(f, "manufacture_info_25: {=u8}, ", &self.manufacture_info_25());
+        defmt::write!(f, "manufacture_info_26: {=u8}, ", &self.manufacture_info_26());
+        defmt::write!(f, "manufacture_info_27: {=u8}, ", &self.manufacture_info_27());
+        defmt::write!(f, "manufacture_info_28: {=u8}, ", &self.manufacture_info_28());
+        defmt::write!(f, "manufacture_info_29: {=u8}, ", &self.manufacture_info_29());
+        defmt::write!(f, "manufacture_info_30: {=u8}, ", &self.manufacture_info_30());
+        defmt::write!(f, "manufacture_info_31: {=u8}, ", &self.manufacture_info_31());
         defmt::write!(f, "}}");
     }
 }
@@ -17379,30 +17958,30 @@ impl MacLifetimeDataBlock1 {
     ///
     #[doc(alias = "MAX_DISCHARGE_A")]
     #[must_use]
-    pub fn max_discharge_a(&self) -> u16 {
+    pub fn max_discharge_a(&self) -> i16 {
         let start = 160;
         let end = 175;
-        let raw = unsafe { ::device_driver::ops::load::<u16, ::device_driver::ops::LE>(&self.bits, start, end) };
+        let raw = unsafe { ::device_driver::ops::load::<i16, ::device_driver::ops::LE>(&self.bits, start, end) };
         raw
     }
     /// `191:176` - Read the `max_avg_discharge_a` field.
     ///
     #[doc(alias = "MAX_AVG_DISCHARGE_A")]
     #[must_use]
-    pub fn max_avg_discharge_a(&self) -> u16 {
+    pub fn max_avg_discharge_a(&self) -> i16 {
         let start = 176;
         let end = 191;
-        let raw = unsafe { ::device_driver::ops::load::<u16, ::device_driver::ops::LE>(&self.bits, start, end) };
+        let raw = unsafe { ::device_driver::ops::load::<i16, ::device_driver::ops::LE>(&self.bits, start, end) };
         raw
     }
     /// `207:192` - Read the `max_avg_discharge_pwr` field.
     ///
     #[doc(alias = "MAX_AVG_DISCHARGE_PWR")]
     #[must_use]
-    pub fn max_avg_discharge_pwr(&self) -> u16 {
+    pub fn max_avg_discharge_pwr(&self) -> i16 {
         let start = 192;
         let end = 207;
-        let raw = unsafe { ::device_driver::ops::load::<u16, ::device_driver::ops::LE>(&self.bits, start, end) };
+        let raw = unsafe { ::device_driver::ops::load::<i16, ::device_driver::ops::LE>(&self.bits, start, end) };
         raw
     }
     /// `215:208` - Read the `max_temp_cell` field.
@@ -17558,29 +18137,29 @@ impl MacLifetimeDataBlock1 {
     /// `175:160` - Set the `max_discharge_a` field.
     ///
     #[doc(alias = "MAX_DISCHARGE_A")]
-    pub fn set_max_discharge_a(&mut self, value: u16) {
+    pub fn set_max_discharge_a(&mut self, value: i16) {
         let start = 160;
         let end = 175;
         let raw = value;
-        unsafe { ::device_driver::ops::store::<u16, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+        unsafe { ::device_driver::ops::store::<i16, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
     }
     /// `191:176` - Set the `max_avg_discharge_a` field.
     ///
     #[doc(alias = "MAX_AVG_DISCHARGE_A")]
-    pub fn set_max_avg_discharge_a(&mut self, value: u16) {
+    pub fn set_max_avg_discharge_a(&mut self, value: i16) {
         let start = 176;
         let end = 191;
         let raw = value;
-        unsafe { ::device_driver::ops::store::<u16, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+        unsafe { ::device_driver::ops::store::<i16, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
     }
     /// `207:192` - Set the `max_avg_discharge_pwr` field.
     ///
     #[doc(alias = "MAX_AVG_DISCHARGE_PWR")]
-    pub fn set_max_avg_discharge_pwr(&mut self, value: u16) {
+    pub fn set_max_avg_discharge_pwr(&mut self, value: i16) {
         let start = 192;
         let end = 207;
         let raw = value;
-        unsafe { ::device_driver::ops::store::<u16, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+        unsafe { ::device_driver::ops::store::<i16, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
     }
     /// `215:208` - Set the `max_temp_cell` field.
     ///
@@ -17691,9 +18270,9 @@ impl defmt::Format for MacLifetimeDataBlock1 {
         defmt::write!(f, "cell_4_min_v: {=u16}, ", &self.cell_4_min_v());
         defmt::write!(f, "max_delta_cell_v: {=u16}, ", &self.max_delta_cell_v());
         defmt::write!(f, "max_charge_a: {=u16}, ", &self.max_charge_a());
-        defmt::write!(f, "max_discharge_a: {=u16}, ", &self.max_discharge_a());
-        defmt::write!(f, "max_avg_discharge_a: {=u16}, ", &self.max_avg_discharge_a());
-        defmt::write!(f, "max_avg_discharge_pwr: {=u16}, ", &self.max_avg_discharge_pwr());
+        defmt::write!(f, "max_discharge_a: {=i16}, ", &self.max_discharge_a());
+        defmt::write!(f, "max_avg_discharge_a: {=i16}, ", &self.max_avg_discharge_a());
+        defmt::write!(f, "max_avg_discharge_pwr: {=i16}, ", &self.max_avg_discharge_pwr());
         defmt::write!(f, "max_temp_cell: {=u8}, ", &self.max_temp_cell());
         defmt::write!(f, "min_temp_cell: {=u8}, ", &self.min_temp_cell());
         defmt::write!(f, "max_delta_cell_temp: {=u8}, ", &self.max_delta_cell_temp());
@@ -22646,11 +23225,11 @@ unsafe impl ::device_driver::Fieldset for MacAllDfSignature {
     const ZERO: Self = Self { bits: [0; 2] };
 }
 impl MacAllDfSignature {
-    /// `14:0` - Read the `static_chem_df_sig` field.
+    /// `14:0` - Read the `all_df_sig` field.
     ///
-    #[doc(alias = "STATIC_CHEM_DF_SIG")]
+    #[doc(alias = "ALL_DF_SIG")]
     #[must_use]
-    pub fn static_chem_df_sig(&self) -> u16 {
+    pub fn all_df_sig(&self) -> u16 {
         let start = 0;
         let end = 14;
         let raw = unsafe { ::device_driver::ops::load::<u16, ::device_driver::ops::LE>(&self.bits, start, end) };
@@ -22666,10 +23245,10 @@ impl MacAllDfSignature {
         let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
         raw > 0
     }
-    /// `14:0` - Set the `static_chem_df_sig` field.
+    /// `14:0` - Set the `all_df_sig` field.
     ///
-    #[doc(alias = "STATIC_CHEM_DF_SIG")]
-    pub fn set_static_chem_df_sig(&mut self, value: u16) {
+    #[doc(alias = "ALL_DF_SIG")]
+    pub fn set_all_df_sig(&mut self, value: u16) {
         let start = 0;
         let end = 14;
         let raw = value;
@@ -22703,7 +23282,7 @@ impl From<MacAllDfSignature> for [u8; 2] {
 impl core::fmt::Debug for MacAllDfSignature {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         let mut d = f.debug_struct("MacAllDfSignature");
-        d.field("static_chem_df_sig", &self.static_chem_df_sig());
+        d.field("all_df_sig", &self.all_df_sig());
         d.field("sig_mismatch", &self.sig_mismatch());
         d.finish()
     }
@@ -22712,7 +23291,7 @@ impl core::fmt::Debug for MacAllDfSignature {
 impl defmt::Format for MacAllDfSignature {
     fn format(&self, f: defmt::Formatter) {
         defmt::write!(f, "MacAllDfSignature {{ ");
-        defmt::write!(f, "static_chem_df_sig: {=u16}, ", &self.static_chem_df_sig());
+        defmt::write!(f, "all_df_sig: {=u16}, ", &self.all_df_sig());
         defmt::write!(f, "sig_mismatch: {=bool}, ", &self.sig_mismatch());
         defmt::write!(f, "}}");
     }
@@ -22910,32 +23489,32 @@ impl core::ops::Not for MacStaticChemDfSig {
 pub struct MacChemId {
     #[doc(hidden)]
     /// The internal bits
-    bits: [u8; 1],
+    bits: [u8; 2],
 }
 unsafe impl ::device_driver::Fieldset for MacChemId {
     const METADATA: ::device_driver::FieldsetMetadata =
         ::device_driver::FieldsetMetadata::new().with_byte_order(::device_driver::ByteOrder::LE);
-    const ZERO: Self = Self { bits: [0; 1] };
+    const ZERO: Self = Self { bits: [0; 2] };
 }
 impl MacChemId {
-    /// `7:0` - Read the `chem_id` field.
+    /// `15:0` - Read the `chem_id` field.
     ///
     #[doc(alias = "CHEM_ID")]
     #[must_use]
-    pub fn chem_id(&self) -> u8 {
+    pub fn chem_id(&self) -> u16 {
         let start = 0;
-        let end = 7;
-        let raw = unsafe { ::device_driver::ops::load::<u8, ::device_driver::ops::LE>(&self.bits, start, end) };
+        let end = 15;
+        let raw = unsafe { ::device_driver::ops::load::<u16, ::device_driver::ops::LE>(&self.bits, start, end) };
         raw
     }
-    /// `7:0` - Set the `chem_id` field.
+    /// `15:0` - Set the `chem_id` field.
     ///
     #[doc(alias = "CHEM_ID")]
-    pub fn set_chem_id(&mut self, value: u8) {
+    pub fn set_chem_id(&mut self, value: u16) {
         let start = 0;
-        let end = 7;
+        let end = 15;
         let raw = value;
-        unsafe { ::device_driver::ops::store::<u8, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
+        unsafe { ::device_driver::ops::store::<u16, ::device_driver::ops::LE>(raw, start, end, &mut self.bits) };
     }
 }
 impl Default for MacChemId {
@@ -22943,12 +23522,12 @@ impl Default for MacChemId {
         <Self as ::device_driver::Fieldset>::ZERO
     }
 }
-impl From<[u8; 1]> for MacChemId {
-    fn from(bits: [u8; 1]) -> Self {
+impl From<[u8; 2]> for MacChemId {
+    fn from(bits: [u8; 2]) -> Self {
         Self { bits }
     }
 }
-impl From<MacChemId> for [u8; 1] {
+impl From<MacChemId> for [u8; 2] {
     fn from(val: MacChemId) -> Self {
         val.bits
     }
@@ -22964,7 +23543,7 @@ impl core::fmt::Debug for MacChemId {
 impl defmt::Format for MacChemId {
     fn format(&self, f: defmt::Formatter) {
         defmt::write!(f, "MacChemId {{ ");
-        defmt::write!(f, "chem_id: {=u8}, ", &self.chem_id());
+        defmt::write!(f, "chem_id: {=u16}, ", &self.chem_id());
         defmt::write!(f, "}}");
     }
 }
